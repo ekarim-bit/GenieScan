@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>The Beauty Genie® — GenieScan™</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+html, body { width:100%; height:100%; background:#151C24; font-family:Georgia,serif; overflow:hidden; }
+.kiosk { width:100%; height:100vh; background:#151C24; position:relative; display:flex; flex-direction:column; overflow:hidden; }
+.gold-bar { height:5px; background:#C9A84C; flex-shrink:0; }
+.gold-bar-bot { height:5px; background:#C9A84C; flex-shrink:0; }
+.mag-bar { width:6px; background:#D840C9; position:absolute; top:0; left:0; bottom:0; z-index:10; }
+.brand-bug { position:absolute; top:16px; right:20px; text-align:right; z-index:20; }
+.brand-bug .name { font-family:Georgia,serif; font-size:12px; font-weight:700; color:#FEFEFE; letter-spacing:.03em; }
+.brand-bug .tag { font-family:'Courier New',monospace; font-size:7.5px; letter-spacing:.18em; color:#C9A84C; text-transform:uppercase; margin-top:2px; }
+
+.screen { display:none; flex-direction:column; align-items:center; justify-content:flex-start; flex:1; padding:36px 40px 28px 48px; overflow-y:auto; -webkit-overflow-scrolling:touch; }
+.screen.active { display:flex; }
+.screen.center { justify-content:center; }
+
+.step-dots { display:flex; gap:8px; margin-bottom:18px; flex-shrink:0; }
+.dot { width:8px; height:8px; border-radius:50%; background:#2A3A4A; transition:background .3s; }
+.dot.active { background:#D840C9; }
+.dot.done { background:#C9A84C; }
+.prog-label { font-family:'Courier New',monospace; font-size:9px; color:#4C5564; letter-spacing:.16em; text-transform:uppercase; margin-bottom:14px; flex-shrink:0; }
+
+.screen-title { font-family:Georgia,serif; font-size:28px; font-weight:700; color:#FEFEFE; text-align:center; line-height:1.15; margin-bottom:8px; flex-shrink:0; }
+.screen-title em { color:#D840C9; font-style:italic; }
+.screen-sub { font-family:Arial,Helvetica,sans-serif; font-size:13px; color:#C8D4E0; text-align:center; line-height:1.65; margin-bottom:24px; max-width:440px; flex-shrink:0; }
+
+.options-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; width:100%; max-width:500px; margin-bottom:20px; }
+.opt-btn { background:rgba(255,255,255,.04); border:2px solid rgba(201,168,76,.3); border-radius:12px; padding:14px 10px; cursor:pointer; text-align:center; transition:border-color .2s, background .2s; user-select:none; position:relative; }
+.opt-btn:active { background:rgba(216,64,201,.2); }
+.opt-btn.selected { border-color:#D840C9; background:rgba(216,64,201,.15); }
+.opt-btn.multi-selected { border-color:#C9A84C; background:rgba(201,168,76,.12); }
+.check-badge { position:absolute; top:6px; right:8px; font-size:10px; color:#C9A84C; display:none; }
+.opt-btn.multi-selected .check-badge { display:block; }
+.opt-label { font-family:Arial,Helvetica,sans-serif; font-size:13px; color:#FEFEFE; font-weight:600; }
+.opt-sub { font-family:Arial,Helvetica,sans-serif; font-size:10px; color:#8A9BB0; margin-top:3px; }
+.multi-hint { font-family:'Courier New',monospace; font-size:9px; color:#C9A84C; letter-spacing:.12em; text-transform:uppercase; margin-bottom:14px; text-align:center; }
+
+.next-btn { background:#D840C9; border:none; border-radius:10px; padding:15px 40px; font-family:Arial,Helvetica,sans-serif; font-size:14px; font-weight:700; color:#FEFEFE; cursor:pointer; letter-spacing:.07em; text-transform:uppercase; opacity:.3; pointer-events:none; transition:opacity .2s; min-width:200px; flex-shrink:0; }
+.next-btn.ready { opacity:1; pointer-events:all; }
+.start-btn { background:#D840C9; border:none; border-radius:12px; padding:20px 60px; font-family:Georgia,serif; font-size:19px; font-weight:700; color:#FEFEFE; cursor:pointer; margin-top:14px; letter-spacing:.02em; }
+
+.pulse-ring { width:92px; height:92px; border-radius:50%; border:2px solid rgba(216,64,201,.4); display:flex; align-items:center; justify-content:center; margin-bottom:24px; position:relative; flex-shrink:0; }
+.pulse-ring::after { content:''; position:absolute; width:112px; height:112px; border-radius:50%; border:1px solid rgba(201,168,76,.2); }
+.pulse-inner { width:66px; height:66px; border-radius:50%; background:rgba(216,64,201,.15); border:2px solid #D840C9; display:flex; align-items:center; justify-content:center; font-size:28px; }
+
+.bar-wrap { width:280px; height:5px; background:rgba(255,255,255,.08); border-radius:3px; margin:20px 0; overflow:hidden; flex-shrink:0; }
+.bar-fill { height:100%; width:0%; background:#C9A84C; border-radius:3px; transition:width .15s linear; }
+.analyze-status { font-family:'Courier New',monospace; font-size:11px; color:#8A9BB0; letter-spacing:.15em; text-transform:uppercase; margin-top:6px; }
+
+.privacy-box { background:rgba(255,255,255,.03); border:1px solid rgba(201,168,76,.25); border-radius:12px; padding:18px 20px; width:100%; max-width:500px; margin-bottom:20px; max-height:200px; overflow-y:auto; }
+.privacy-text { font-family:Arial,sans-serif; font-size:11px; color:#8A9BB0; line-height:1.75; }
+.privacy-text strong { color:#C8D4E0; }
+.agree-row { display:flex; align-items:center; gap:12px; width:100%; max-width:500px; margin-bottom:20px; cursor:pointer; }
+.agree-check { width:24px; height:24px; border-radius:6px; border:2px solid rgba(201,168,76,.4); display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:14px; color:#C9A84C; transition:all .2s; }
+.agree-check.checked { background:rgba(201,168,76,.15); border-color:#C9A84C; }
+.agree-label { font-family:Arial,sans-serif; font-size:13px; color:#C8D4E0; line-height:1.5; }
+
+.form-group { width:100%; max-width:500px; margin-bottom:14px; }
+.form-label { font-family:'Courier New',monospace; font-size:9px; color:#C9A84C; letter-spacing:.16em; text-transform:uppercase; margin-bottom:8px; display:block; }
+.form-input { width:100%; background:rgba(255,255,255,.05); border:1.5px solid rgba(201,168,76,.3); border-radius:10px; padding:14px 16px; font-family:Arial,sans-serif; font-size:14px; color:#FEFEFE; outline:none; transition:border-color .2s; }
+.form-input:focus { border-color:#D840C9; }
+.form-input::placeholder { color:#4C5564; }
+
+.hair-id-box { background:rgba(201,168,76,.08); border:1px solid rgba(201,168,76,.4); border-radius:12px; padding:14px 24px; text-align:center; margin-bottom:16px; width:100%; max-width:500px; flex-shrink:0; }
+.hair-id-label { font-family:'Courier New',monospace; font-size:8px; letter-spacing:.22em; color:#C9A84C; text-transform:uppercase; margin-bottom:4px; }
+.hair-id-val { font-family:'Courier New',monospace; font-size:18px; color:#FEFEFE; font-weight:700; letter-spacing:.18em; }
+
+.result-card { background:rgba(255,255,255,.04); border:1px solid rgba(201,168,76,.35); border-radius:14px; padding:18px 22px; width:100%; max-width:500px; margin-bottom:12px; flex-shrink:0; }
+.sec-label { font-family:'Courier New',monospace; font-size:8.5px; letter-spacing:.22em; color:#D840C9; text-transform:uppercase; margin-bottom:10px; }
+.r-row { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:7px; gap:8px; }
+.r-key { font-family:Arial,sans-serif; font-size:12px; color:#8A9BB0; flex-shrink:0; }
+.r-val { font-family:Georgia,serif; font-size:13px; color:#FEFEFE; font-weight:700; text-align:right; }
+.r-tags { display:flex; flex-wrap:wrap; gap:4px; justify-content:flex-end; }
+.r-tag { background:rgba(216,64,201,.15); border:1px solid rgba(216,64,201,.3); border-radius:12px; padding:2px 8px; font-family:Arial,sans-serif; font-size:10px; color:#D840C9; }
+.r-rule { height:1px; background:rgba(201,168,76,.2); margin:10px 0; }
+.r-insight { font-family:Arial,sans-serif; font-size:12px; color:#C8D4E0; line-height:1.65; }
+
+.regimen-label { font-family:'Courier New',monospace; font-size:8.5px; letter-spacing:.22em; color:#C9A84C; text-transform:uppercase; margin-bottom:10px; margin-top:4px; width:100%; max-width:500px; flex-shrink:0; }
+.prod-card { background:rgba(201,168,76,.06); border:1px solid rgba(201,168,76,.3); border-radius:12px; padding:14px 18px; width:100%; max-width:500px; margin-bottom:9px; display:flex; gap:14px; align-items:flex-start; flex-shrink:0; }
+.prod-step { font-family:'Courier New',monospace; font-size:8px; color:#4C5564; letter-spacing:.12em; text-transform:uppercase; margin-bottom:2px; }
+.prod-brand { font-family:'Courier New',monospace; font-size:8.5px; color:#C9A84C; letter-spacing:.14em; text-transform:uppercase; margin-bottom:2px; }
+.prod-name { font-family:Georgia,serif; font-size:14px; color:#FEFEFE; font-weight:700; margin-bottom:4px; }
+.prod-why { font-family:Arial,sans-serif; font-size:11px; color:#C8D4E0; line-height:1.5; }
+.prod-icon { width:46px; height:46px; border-radius:10px; background:rgba(201,168,76,.12); border:1px solid rgba(201,168,76,.25); display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:20px; }
+.match-pill { display:inline-block; background:rgba(46,200,100,.14); border:1px solid rgba(46,200,100,.32); border-radius:12px; padding:2px 9px; font-family:'Courier New',monospace; font-size:8.5px; color:#4EC87A; letter-spacing:.07em; margin-top:4px; }
+
+.acc-card { background:rgba(216,64,201,.07); border:1px solid rgba(216,64,201,.28); border-radius:12px; padding:14px 18px; width:100%; max-width:500px; margin-bottom:16px; display:flex; gap:14px; align-items:center; flex-shrink:0; }
+.acc-icon { width:42px; height:42px; border-radius:10px; background:rgba(216,64,201,.12); border:1px solid rgba(216,64,201,.28); display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:18px; }
+.restart-btn { background:transparent; border:1px solid rgba(201,168,76,.4); border-radius:10px; padding:11px 28px; font-family:Arial,sans-serif; font-size:12px; color:#C9A84C; cursor:pointer; letter-spacing:.08em; text-transform:uppercase; margin-bottom:24px; flex-shrink:0; }
+</style>
+</head>
+<body>
+<div class="kiosk">
+  <div class="gold-bar"></div>
+  <div class="mag-bar"></div>
+  <div class="brand-bug">
+    <div class="name">THE BEAUTY GENIE®</div>
+    <div class="tag">Beauty Intelligence</div>
+  </div>
+
+  <!-- S0: Welcome -->
+  <div class="screen center active" id="s0">
+    <div class="pulse-ring"><div class="pulse-inner">✨</div></div>
+    <div class="screen-title">Welcome to<br><em>GenieScan™</em></div>
+    <div class="screen-sub">AI-powered hair analysis for everyone with curly, wavy, and textured hair. Your personalized profile and full product regimen — in under 60 seconds.</div>
+    <button class="start-btn" onclick="goTo(1)">Tap to Begin</button>
+    <div style="font-family:'Courier New',monospace;font-size:9px;color:#2A3A4A;letter-spacing:.14em;text-transform:uppercase;margin-top:28px;">Powered by The Beauty Genie® · beautywishesinabox.com</div>
+  </div>
+
+  <!-- S1: Privacy Policy -->
+  <div class="screen" id="s1">
+    <div class="step-dots" id="d1"></div>
+    <div class="prog-label">Before We Begin</div>
+    <div class="screen-title">Privacy &<br><em>Data Policy</em></div>
+    <div class="screen-sub">Please review how we use your information before getting started.</div>
+    <div class="privacy-box">
+      <div class="privacy-text">
+        <strong>What we collect:</strong> Your hair profile answers, name, and email address.<br><br>
+        <strong>How we use it:</strong> To generate your personalized GenieScan™ hair profile and product recommendations. With your consent, we may send you updates about The Beauty Genie® platform, new campus locations, and BeautyTech U™ program news.<br><br>
+        <strong>We will never:</strong> Sell your personal information to third parties or share it without your consent.<br><br>
+        <strong>Your data:</strong> You may request deletion of your data at any time by contacting info@thebeautygenie.co.<br><br>
+        <strong>Photos:</strong> This demo does not collect or store any photos or biometric data.<br><br>
+        By proceeding, you agree to The Beauty Genie® Privacy Policy and consent to receive personalized product recommendations based on your hair analysis.
+      </div>
+    </div>
+    <div class="agree-row" onclick="toggleAgree()">
+      <div class="agree-check" id="agreeCheck"></div>
+      <div class="agree-label">I have read and agree to the Privacy Policy and consent to data collection for hair analysis purposes.</div>
+    </div>
+    <button class="next-btn" id="n1" onclick="goTo(2)">I Agree — Continue</button>
+  </div>
+
+  <!-- S2: Basic Info -->
+  <div class="screen" id="s2">
+    <div class="step-dots" id="d2"></div>
+    <div class="prog-label">Step 1 of 7 · Your Info</div>
+    <div class="screen-title">Let's get started<br><em>with the basics.</em></div>
+    <div class="screen-sub">Your information helps us personalize your experience and stay connected.</div>
+    <div class="form-group">
+      <label class="form-label">First Name</label>
+      <input class="form-input" type="text" id="fName" placeholder="Enter your first name" oninput="checkBasicInfo()">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Email Address</label>
+      <input class="form-input" type="email" id="fEmail" placeholder="Enter your email" oninput="checkBasicInfo()">
+    </div>
+    <div class="form-group">
+      <label class="form-label">I Am A...</label>
+      <div class="options-grid" style="margin-bottom:0;">
+        <div class="opt-btn" onclick="selRole(this)"><div class="opt-label">Student</div><div class="opt-sub">Currently enrolled</div></div>
+        <div class="opt-btn" onclick="selRole(this)"><div class="opt-label">Professional</div><div class="opt-sub">Working in industry</div></div>
+        <div class="opt-btn" onclick="selRole(this)"><div class="opt-label">Beauty Enthusiast</div><div class="opt-sub">Love all things beauty</div></div>
+        <div class="opt-btn" onclick="selRole(this)"><div class="opt-label">Just Curious</div><div class="opt-sub">Exploring the platform</div></div>
+      </div>
+    </div>
+    <button class="next-btn" id="n2" onclick="goTo(3)" style="margin-top:20px;">Next</button>
+  </div>
+
+  <!-- S3: Hair Type -->
+  <div class="screen" id="s3">
+    <div class="step-dots" id="d3"></div>
+    <div class="prog-label">Step 2 of 7 · Hair Type</div>
+    <div class="screen-title">What's your<br><em>curl pattern?</em></div>
+    <div class="screen-sub">Select the option that best describes your natural hair texture. Many people have more than one pattern — choose the most dominant.</div>
+    <div class="options-grid">
+      <div class="opt-btn" onclick="sel(this,'q3')"><div class="opt-label">Type 2A</div><div class="opt-sub">Fine, loose S-waves</div></div>
+      <div class="opt-btn" onclick="sel(this,'q3')"><div class="opt-label">Type 2B</div><div class="opt-sub">Wavy with some frizz</div></div>
+      <div class="opt-btn" onclick="sel(this,'q3')"><div class="opt-label">Type 2C</div><div class="opt-sub">Thick, defined waves</div></div>
+      <div class="opt-btn" onclick="sel(this,'q3')"><div class="opt-label">Type 3A</div><div class="opt-sub">Loose, springy ringlets</div></div>
+      <div class="opt-btn" onclick="sel(this,'q3')"><div class="opt-label">Type 3B</div><div class="opt-sub">Tight, bouncy curls</div></div>
+      <div class="opt-btn" onclick="sel(this,'q3')"><div class="opt-label">Type 3C</div><div class="opt-sub">Tight corkscrews</div></div>
+      <div class="opt-btn" onclick="sel(this,'q3')"><div class="opt-label">Type 4A</div><div class="opt-sub">Coily S-pattern</div></div>
+      <div class="opt-btn" onclick="sel(this,'q3')"><div class="opt-label">Type 4B</div><div class="opt-sub">Z-pattern coils</div></div>
+    </div>
+    <div class="opt-btn" onclick="sel(this,'q3')" style="width:100%;max-width:500px;margin-bottom:20px;"><div class="opt-label">Type 4C</div><div class="opt-sub">Tight zig-zag coils, maximum shrinkage</div></div>
+    <button class="next-btn" id="n3" onclick="goTo(4)">Next</button>
+  </div>
+
+  <!-- S4: Porosity -->
+  <div class="screen" id="s4">
+    <div class="step-dots" id="d4"></div>
+    <div class="prog-label">Step 3 of 7 · Porosity</div>
+    <div class="screen-title">How does your<br><em>hair absorb moisture?</em></div>
+    <div class="screen-sub">Porosity is the single most important factor in choosing the right products for your hair.</div>
+    <div class="options-grid">
+      <div class="opt-btn" onclick="sel(this,'q4')"><div class="opt-label">Low Porosity</div><div class="opt-sub">Water beads up, slow to absorb</div></div>
+      <div class="opt-btn" onclick="sel(this,'q4')"><div class="opt-label">Medium Porosity</div><div class="opt-sub">Absorbs & retains well</div></div>
+      <div class="opt-btn" onclick="sel(this,'q4')"><div class="opt-label">High Porosity</div><div class="opt-sub">Absorbs fast, loses moisture quickly</div></div>
+      <div class="opt-btn" onclick="sel(this,'q4')"><div class="opt-label">Not Sure</div><div class="opt-sub">We'll determine from your answers</div></div>
+    </div>
+    <button class="next-btn" id="n4" onclick="goTo(5)">Next</button>
+  </div>
+
+  <!-- S5: Challenges -->
+  <div class="screen" id="s5">
+    <div class="step-dots" id="d5"></div>
+    <div class="prog-label">Step 4 of 7 · Challenges</div>
+    <div class="screen-title">What are your<br><em>top hair challenges?</em></div>
+    <div class="multi-hint">Select up to 3</div>
+    <div class="options-grid">
+      <div class="opt-btn" onclick="multiSel(this,'q5',3)"><span class="check-badge">✓</span><div class="opt-label">Dryness</div><div class="opt-sub">Lacks moisture & shine</div></div>
+      <div class="opt-btn" onclick="multiSel(this,'q5',3)"><span class="check-badge">✓</span><div class="opt-label">Breakage</div><div class="opt-sub">Weak, snapping strands</div></div>
+      <div class="opt-btn" onclick="multiSel(this,'q5',3)"><span class="check-badge">✓</span><div class="opt-label">Frizz</div><div class="opt-sub">Unruly, puffy texture</div></div>
+      <div class="opt-btn" onclick="multiSel(this,'q5',3)"><span class="check-badge">✓</span><div class="opt-label">Scalp Issues</div><div class="opt-sub">Itchy, flaky, or sensitive</div></div>
+      <div class="opt-btn" onclick="multiSel(this,'q5',3)"><span class="check-badge">✓</span><div class="opt-label">Shedding</div><div class="opt-sub">Excessive hair loss</div></div>
+      <div class="opt-btn" onclick="multiSel(this,'q5',3)"><span class="check-badge">✓</span><div class="opt-label">Shrinkage</div><div class="opt-sub">Length not showing</div></div>
+    </div>
+    <button class="next-btn" id="n5" onclick="goTo(6)">Next</button>
+  </div>
+
+  <!-- S6: Goals -->
+  <div class="screen" id="s6">
+    <div class="step-dots" id="d6"></div>
+    <div class="prog-label">Step 5 of 7 · Goals</div>
+    <div class="screen-title">What are your<br><em>top hair goals?</em></div>
+    <div class="multi-hint">Select up to 3</div>
+    <div class="options-grid">
+      <div class="opt-btn" onclick="multiSel(this,'q6',3)"><span class="check-badge">✓</span><div class="opt-label">More Moisture</div><div class="opt-sub">Hydration & softness</div></div>
+      <div class="opt-btn" onclick="multiSel(this,'q6',3)"><span class="check-badge">✓</span><div class="opt-label">Strengthen</div><div class="opt-sub">Reduce breakage</div></div>
+      <div class="opt-btn" onclick="multiSel(this,'q6',3)"><span class="check-badge">✓</span><div class="opt-label">Define Curls</div><div class="opt-sub">Pattern & hold</div></div>
+      <div class="opt-btn" onclick="multiSel(this,'q6',3)"><span class="check-badge">✓</span><div class="opt-label">Grow & Retain</div><div class="opt-sub">Length & thickness</div></div>
+      <div class="opt-btn" onclick="multiSel(this,'q6',3)"><span class="check-badge">✓</span><div class="opt-label">Scalp Health</div><div class="opt-sub">Balance & nourish</div></div>
+      <div class="opt-btn" onclick="multiSel(this,'q6',3)"><span class="check-badge">✓</span><div class="opt-label">Shine & Vibrancy</div><div class="opt-sub">Glossy, healthy look</div></div>
+    </div>
+    <button class="next-btn" id="n6" onclick="goTo(7)">Next</button>
+  </div>
+
+  <!-- S7: Preferences -->
+  <div class="screen" id="s7">
+    <div class="step-dots" id="d7"></div>
+    <div class="prog-label">Step 6 of 7 · Preferences</div>
+    <div class="screen-title">What matters most<br><em>to you?</em></div>
+    <div class="screen-sub">This helps us match you to the right brands and formulas.</div>
+    <div style="font-family:'Courier New',monospace;font-size:9px;color:#C9A84C;letter-spacing:.14em;text-transform:uppercase;margin-bottom:10px;align-self:flex-start;">Product Values</div>
+    <div class="options-grid" style="margin-bottom:16px;">
+      <div class="opt-btn" onclick="sel(this,'q7a')"><div class="opt-label">Natural Ingredients</div><div class="opt-sub">Plant-based, clean formulas</div></div>
+      <div class="opt-btn" onclick="sel(this,'q7a')"><div class="opt-label">Science-Backed</div><div class="opt-sub">Clinically tested formulas</div></div>
+      <div class="opt-btn" onclick="sel(this,'q7a')"><div class="opt-label">Both</div><div class="opt-sub">Best of both worlds</div></div>
+      <div class="opt-btn" onclick="sel(this,'q7a')"><div class="opt-label">No Preference</div><div class="opt-sub">Results are what matter</div></div>
+    </div>
+    <div style="font-family:'Courier New',monospace;font-size:9px;color:#C9A84C;letter-spacing:.14em;text-transform:uppercase;margin-bottom:10px;align-self:flex-start;">Signature Style</div>
+    <div class="options-grid" style="margin-bottom:20px;">
+      <div class="opt-btn" onclick="sel(this,'q7b')"><div class="opt-label">Wash & Go</div><div class="opt-sub">Air dry, minimal styling</div></div>
+      <div class="opt-btn" onclick="sel(this,'q7b')"><div class="opt-label">Protective Styles</div><div class="opt-sub">Braids, twists, locs, wigs</div></div>
+      <div class="opt-btn" onclick="sel(this,'q7b')"><div class="opt-label">Heat Styling</div><div class="opt-sub">Blow out, flat iron, press</div></div>
+      <div class="opt-btn" onclick="sel(this,'q7b')"><div class="opt-label">Twist-Outs / Sets</div><div class="opt-sub">Stretched curl definition</div></div>
+    </div>
+    <div style="font-family:'Courier New',monospace;font-size:9px;color:#C9A84C;letter-spacing:.14em;text-transform:uppercase;margin-bottom:10px;align-self:flex-start;">Step 7 of 7 · Almost Done</div>
+    <div class="options-grid" style="margin-bottom:20px;">
+      <div class="opt-btn" onclick="sel(this,'q7c')"><div class="opt-label">Yes — keep me posted</div><div class="opt-sub">Campus launches & offers</div></div>
+      <div class="opt-btn" onclick="sel(this,'q7c')"><div class="opt-label">No thanks</div><div class="opt-sub">Analysis only</div></div>
+    </div>
+    <button class="next-btn" id="n7" onclick="goTo(8)">Analyze My Hair</button>
+  </div>
+
+  <!-- S8: Analyzing -->
+  <div class="screen center" id="s8">
+    <div class="pulse-ring"><div class="pulse-inner" id="aIcon">🔬</div></div>
+    <div class="screen-title" id="aTitle">Running<br><em>GenieScan™...</em></div>
+    <div class="bar-wrap"><div class="bar-fill" id="aBar"></div></div>
+    <div class="analyze-status" id="aStatus">Reading hair structure</div>
+  </div>
+
+  <!-- S9: Results -->
+  <div class="screen" id="s9">
+    <div class="step-dots" id="d9" style="margin-bottom:12px;"></div>
+
+    <div class="hair-id-box">
+      <div class="hair-id-label">Your GenieScan™ Hair ID</div>
+      <div class="hair-id-val" id="hairId">GS-4C-LP-2026</div>
+    </div>
+
+    <div class="result-card">
+      <div class="sec-label">Hair Profile</div>
+      <div class="r-row"><span class="r-key">Name</span><span class="r-val" id="rName">—</span></div>
+      <div class="r-row"><span class="r-key">Curl Type</span><span class="r-val" id="rType">4C</span></div>
+      <div class="r-row"><span class="r-key">Porosity</span><span class="r-val" id="rPor">Low</span></div>
+      <div class="r-row"><span class="r-key">Top Challenges</span><div class="r-tags" id="rChallenges"></div></div>
+      <div class="r-row"><span class="r-key">Top Goals</span><div class="r-tags" id="rGoals"></div></div>
+      <div class="r-row"><span class="r-key">Style</span><span class="r-val" id="rStyle">Wash & Go</span></div>
+      <div class="r-rule"></div>
+      <div class="sec-label" style="margin-bottom:5px;">Insight</div>
+      <div class="r-insight" id="rInsight"></div>
+    </div>
+
+    <div class="regimen-label">Your Personalized Regimen</div>
+
+    <div class="prod-card">
+      <div class="prod-icon">🚿</div>
+      <div>
+        <div class="prod-step">Step 1 · Cleanse</div>
+        <div class="prod-brand" id="p1Brand">As I Am</div>
+        <div class="prod-name" id="p1Name">Coconut CoWash</div>
+        <div class="prod-why" id="p1Why"></div>
+        <div class="match-pill">Regimen Match</div>
+      </div>
+    </div>
+
+    <div class="prod-card">
+      <div class="prod-icon">💆</div>
+      <div>
+        <div class="prod-step">Step 2 · Condition</div>
+        <div class="prod-brand" id="p2Brand">Mielle Organics</div>
+        <div class="prod-name" id="p2Name">Pomegranate & Honey Conditioner</div>
+        <div class="prod-why" id="p2Why"></div>
+        <div class="match-pill">Regimen Match</div>
+      </div>
+    </div>
+
+    <div class="prod-card">
+      <div class="prod-icon">🧴</div>
+      <div>
+        <div class="prod-step">Step 3 · Style</div>
+        <div class="prod-brand" id="p3Brand">Camille Rose</div>
+        <div class="prod-name" id="p3Name">Curl Maker</div>
+        <div class="prod-why" id="p3Why"></div>
+        <div class="match-pill">Regimen Match</div>
+      </div>
+    </div>
+
+    <div class="acc-card">
+      <div class="acc-icon">🪮</div>
+      <div>
+        <div class="prod-brand">Firstline Brands · Textured Hair Care</div>
+        <div class="prod-name" id="accName">Satin-Lined Bonnet</div>
+        <div class="prod-why" id="accWhy"></div>
+      </div>
+    </div>
+
+    <button class="restart-btn" onclick="restart()">Start Over</button>
+  </div>
+
+  <div class="gold-bar-bot"></div>
+</div>
+
+<script>
+const ans = { q5:[], q6:[] };
+
+const CLEANSE = {
+  'Low Porosity':    { brand:'As I Am',              name:'Coconut CoWash',                  why:'Gentle co-wash removes buildup without stripping — ideal for low porosity hair that resists moisture.' },
+  'Medium Porosity': { brand:'ORS Olive Oil',         name:'Creamy Aloe Shampoo',             why:'Moisturizing shampoo that cleanses and replenishes — perfect for balanced medium porosity hair.' },
+  'High Porosity':   { brand:'Aunt Jackies',          name:'Oh So Clean Shampoo',             why:'Moisturizing shampoo that cleanses while locking hydration in — essential for high porosity hair that loses moisture fast.' },
+  'Not Sure':        { brand:'The Doux',              name:'Sucka Free Sulfate-Free Shampoo', why:'Gentle, versatile cleanser that works across all porosity types — a great starting point.' },
+  'Wavy':            { brand:'Rizos Curls',           name:'Curl Defining Shampoo',           why:'Sulfate-free shampoo that cleanses wavy and curly hair without disrupting your natural wave pattern.' },
+};
+const CONDITION = {
+  'Low Porosity':    { brand:'Mielle Organics',       name:'Pomegranate & Honey Conditioner', why:'Lightweight conditioner that penetrates low porosity strands — apply with warmth for best results.' },
+  'Medium Porosity': { brand:'Jamaican Mango & Lime', name:'Tingle Conditioner',              why:'Strengthening conditioner with proteins and nutrients to maintain medium porosity hairs balance.' },
+  'High Porosity':   { brand:'tGIN',                  name:'Butter Cream Daily Moisturizer',  why:'Rich moisturizer that seals the cuticle and fights rapid moisture loss in high porosity hair.' },
+  'Not Sure':        { brand:'Miss Jessies',          name:'Quick Curls',                     why:'Lightweight curl refresher that works across all porosity types — universally loved for all curl patterns.' },
+  'Wavy':            { brand:'Rizos Curls',           name:'Deep Moisture Hair Mask',         why:'Deeply hydrating mask that softens and defines waves without weighing them down — perfect for Type 2 hair.' },
+};
+const STYLE = {
+  'Wash & Go':        { brand:'Camille Rose',          name:'Curl Maker',                      why:'Aloe-based curl defining gel — lightweight hold, no buildup or crunch.' },
+  'Wash & Go Wavy':   { brand:'Rizos Curls',           name:'Curl Defining Gel',               why:'Frizz-fighting gel that enhances and defines waves with soft, flexible hold — no crunch.' },
+  'Protective Styles':{ brand:'Miss Jessies',          name:'Multicultural Curls',             why:'Lightweight curl cream that moisturizes and softens before protective styling — reduces tension and keeps hair supple.' },
+  'Heat Styling':     { brand:'ORS Olive Oil',         name:'Heat Protection Spray',           why:'Shields strands from heat damage while locking in moisture — essential before blow outs and flat irons.' },
+  'Twist-Outs / Sets':{ brand:'OCOA Beauty',           name:'Curl Defining Cream',             why:'Clean, plant-powered curl cream that defines and elongates your pattern for clean twist-out and braid-out results.' },
+};
+const ACCESSORIES = {
+  'Wash & Go':         { name:'Satin-Lined Bonnet',           why:'Preserve your wash and go overnight — satin lining protects curl definition and prevents moisture loss.' },
+  'Protective Styles': { name:'Seamless Wide-Tooth Comb',     why:'Gentle detangling for protective styling prep — glides through textured hair without breakage.' },
+  'Heat Styling':      { name:'Thermal Heat Cap',             why:'Deep condition with heat at home — opens the cuticle for maximum moisture before your blowout or press.' },
+  'Twist-Outs / Sets': { name:'Butterfly Clips & Sectioning Kit', why:'Keep sections clean and uniform — essential for consistent twist-out and braid-out results.' },
+};
+const INSIGHTS = {
+  'Low Porosity':    'Your hair resists moisture at first but holds it well once absorbed. Use lightweight, water-based products and apply with warmth to help open the cuticle.',
+  'Medium Porosity': 'Your balanced porosity is an asset — your hair absorbs and retains moisture well. Maintain that balance with consistent hydration and occasional protein.',
+  'High Porosity':   'Your hair absorbs moisture quickly but loses it just as fast. Always seal with a butter or oil after moisturizing, and focus on products that strengthen the cuticle.',
+  'Not Sure':        'Based on your responses, we have estimated your porosity. A balanced, gentle routine is your best starting point — your hair will reveal more over time.',
+  'Wavy':            'Wavy hair needs lightweight moisture that enhances your wave pattern without weighing it down. Focus on defining products that fight frizz without crunch.',
+};
+const POR_LABEL = { 'Low Porosity':'Low', 'Medium Porosity':'Medium', 'High Porosity':'High', 'Not Sure':'Estimated' };
+const WAVY_TYPES = ['Type 2A','Type 2B','Type 2C'];
+
+function buildDots(id, total, cur) {
+  const el = document.getElementById('d'+id);
+  if (!el) return;
+  el.innerHTML = '';
+  for (let i=1;i<=total;i++) {
+    const d=document.createElement('div');
+    d.className='dot'+(i<cur?' done':i===cur?' active':'');
+    el.appendChild(d);
+  }
+}
+
+function goTo(n) {
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById('s'+n).classList.add('active');
+  window.scrollTo(0,0);
+  const dotMap={1:1,2:2,3:3,4:4,5:5,6:6,7:7,9:9};
+  if(dotMap[n]) buildDots(dotMap[n],7,n-1);
+  if(n===8) analyze();
+  if(n===9) showResults();
+}
+
+let agreeChecked = false;
+function toggleAgree() {
+  agreeChecked = !agreeChecked;
+  const el = document.getElementById('agreeCheck');
+  el.classList.toggle('checked', agreeChecked);
+  el.textContent = agreeChecked ? '✓' : '';
+  document.getElementById('n1').classList.toggle('ready', agreeChecked);
+}
+
+function checkBasicInfo() {
+  const name  = document.getElementById('fName').value.trim();
+  const email = document.getElementById('fEmail').value.trim();
+  const hasRole = !!ans.role;
+  if (name && email && hasRole) document.getElementById('n2').classList.add('ready');
+}
+
+function selRole(btn) {
+  btn.closest('.options-grid').querySelectorAll('.opt-btn').forEach(b=>b.classList.remove('selected'));
+  btn.classList.add('selected');
+  ans.role = btn.querySelector('.opt-label').textContent.trim();
+  checkBasicInfo();
+}
+
+function sel(btn, key) {
+  const grid = btn.closest('.options-grid, .kiosk');
+  if (btn.closest('.options-grid')) {
+    btn.closest('.options-grid').querySelectorAll('.opt-btn').forEach(b=>b.classList.remove('selected'));
+  }
+  btn.classList.add('selected');
+  ans[key] = btn.querySelector('.opt-label').textContent.trim();
+  const qNum = key.replace('q','').replace('a','').replace('b','').replace('c','');
+  checkQ7();
+  const nb = document.getElementById('n'+qNum);
+  if(nb && key!=='q7a'&&key!=='q7b'&&key!=='q7c') nb.classList.add('ready');
+}
+
+function checkQ7() {
+  if(ans.q7a && ans.q7b && ans.q7c) document.getElementById('n7').classList.add('ready');
+}
+
+function multiSel(btn, key, max) {
+  if(btn.classList.contains('multi-selected')) {
+    btn.classList.remove('multi-selected');
+    const label=btn.querySelector('.opt-label').textContent.trim();
+    ans[key]=ans[key].filter(v=>v!==label);
+  } else {
+    if(ans[key].length>=max) return;
+    btn.classList.add('multi-selected');
+    ans[key].push(btn.querySelector('.opt-label').textContent.trim());
+  }
+  const nb=document.getElementById('n'+key.replace('q',''));
+  if(nb){ if(ans[key].length>0) nb.classList.add('ready'); else nb.classList.remove('ready'); }
+}
+
+function analyze() {
+  const bar=document.getElementById('aBar');
+  const status=document.getElementById('aStatus');
+  const title=document.getElementById('aTitle');
+  const icon=document.getElementById('aIcon');
+  const name=document.getElementById('fName').value.trim().split(' ')[0]||'';
+  const steps=[
+    [10,'Reading hair structure...'],
+    [24,'Evaluating curl pattern...'],
+    [38,'Analyzing porosity levels...'],
+    [52,'Mapping hair challenges...'],
+    [66,'Aligning with your goals...'],
+    [80,'Selecting product regimen...'],
+    [92,'Generating your Hair ID...'],
+    [100,'Profile complete!']
+  ];
+  let i=0; bar.style.width='0%';
+  if(name) title.innerHTML='Running<br><em>GenieScan™</em><br><span style="font-size:16px;color:#C9A84C;">for '+name+'...</span>';
+  function tick() {
+    if(i>=steps.length){ title.innerHTML='GenieScan™<br><em>Complete.</em>'; icon.textContent='✨'; setTimeout(()=>goTo(9),700); return; }
+    bar.style.width=steps[i][0]+'%'; status.textContent=steps[i][1]; i++;
+    setTimeout(tick,480);
+  }
+  setTimeout(tick,300);
+}
+
+function generateId(type, por) {
+  const t=(type||'TX').replace(/[^A-Z0-9]/gi,'').toUpperCase().slice(0,3);
+  const p={'Low Porosity':'LP','Medium Porosity':'MP','High Porosity':'HP','Not Sure':'XX'}[por]||'XX';
+  return 'GS-'+t+'-'+p+'-2026-'+Math.floor(Math.random()*900+100);
+}
+
+function showResults() {
+  buildDots(9,7,8);
+  const name  = document.getElementById('fName').value.trim() || '';
+  const type  = ans.q3 || 'Type 4C';
+  const por   = ans.q4 || 'Low Porosity';
+  const style = ans.q7b || 'Wash & Go';
+  const isWavy = WAVY_TYPES.includes(type);
+
+  document.getElementById('hairId').textContent = generateId(type, por);
+  document.getElementById('rName').textContent  = name || '—';
+  document.getElementById('rType').textContent  = type.replace('Type ','');
+  document.getElementById('rPor').textContent   = POR_LABEL[por]||por;
+  document.getElementById('rStyle').textContent = style.length>16?style.split('/')[0].trim():style;
+  document.getElementById('rInsight').textContent = isWavy ? INSIGHTS['Wavy'] : (INSIGHTS[por]||INSIGHTS['Not Sure']);
+
+  const chalEl=document.getElementById('rChallenges');
+  chalEl.innerHTML='';
+  (ans.q5.length?ans.q5:['Dryness']).forEach(c=>{const t=document.createElement('span');t.className='r-tag';t.textContent=c;chalEl.appendChild(t);});
+
+  const goalEl=document.getElementById('rGoals');
+  goalEl.innerHTML='';
+  (ans.q6.length?ans.q6:['More Moisture']).forEach(g=>{const t=document.createElement('span');t.className='r-tag';t.textContent=g;goalEl.appendChild(t);});
+
+  const cleKey = isWavy?'Wavy':por;
+  const conKey = isWavy?'Wavy':por;
+  const styKey = isWavy&&style==='Wash & Go'?'Wash & Go Wavy':style;
+
+  const cl=CLEANSE[cleKey]||CLEANSE['Not Sure'];
+  document.getElementById('p1Brand').textContent=cl.brand;
+  document.getElementById('p1Name').textContent=cl.name;
+  document.getElementById('p1Why').textContent=cl.why;
+
+  const co=CONDITION[conKey]||CONDITION['Not Sure'];
+  document.getElementById('p2Brand').textContent=co.brand;
+  document.getElementById('p2Name').textContent=co.name;
+  document.getElementById('p2Why').textContent=co.why;
+
+  const st=STYLE[styKey]||STYLE['Wash & Go'];
+  document.getElementById('p3Brand').textContent=st.brand;
+  document.getElementById('p3Name').textContent=st.name;
+  document.getElementById('p3Why').textContent=st.why;
+
+  const ac=ACCESSORIES[style]||ACCESSORIES['Wash & Go'];
+  document.getElementById('accName').textContent=ac.name;
+  document.getElementById('accWhy').textContent=ac.why;
+}
+
+function restart() {
+  ans.q5=[]; ans.q6=[]; agreeChecked=false;
+  Object.keys(ans).forEach(k=>{if(k!=='q5'&&k!=='q6') delete ans[k];});
+  document.querySelectorAll('.opt-btn').forEach(b=>b.classList.remove('selected','multi-selected'));
+  document.querySelectorAll('.next-btn').forEach(b=>b.classList.remove('ready'));
+  document.getElementById('agreeCheck').classList.remove('checked');
+  document.getElementById('agreeCheck').textContent='';
+  document.getElementById('fName').value='';
+  document.getElementById('fEmail').value='';
+  goTo(0);
+}
+</script>
+</body>
+</html>
